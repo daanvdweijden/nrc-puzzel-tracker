@@ -1,0 +1,61 @@
+name: NRC Crux
+
+on:
+  schedule:
+    # 6×/day (every 4h) at :17 — :17 avoids the top-of-hour rush when GitHub
+    # delays/drops scheduled runs. Runs ~00,04,08,12,16,20 UTC.
+    - cron: "17 */4 * * *"
+  workflow_dispatch: {}      # manual "Run workflow" button
+
+permissions:
+  contents: write            # allow committing the updated CSV/JSON back
+
+# Never let two runs push at once (a scheduled run + a manual run can overlap).
+concurrency:
+  group: nrc-crux
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      # ---- token-based; exits non-zero when the tokens rotate ----
+      - name: NRC Crux
+        id: nrc
+        continue-on-error: true
+        env:
+          NRC_PLAYER_ID: ${{ secrets.NRC_PLAYER_ID }}
+          NRC_USER_ID: ${{ secrets.NRC_USER_ID }}
+        run: python scripts/fetch_nrc.py
+
+      - name: Commit updated scores
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          # No-op (and skip the push) when nothing changed — most runs.
+          git diff --cached --quiet && { echo "No changes to commit."; exit 0; }
+          git commit -m "Update Crux scores ($(date -u +'%F %H:%M') UTC)"
+          git pull --rebase --autostash
+          git push
+
+      # If the NRC tokens rotated, fail the job so GitHub emails you to
+      # refresh the secrets — but only ONCE a day, not on every 4-hourly
+      # run, to avoid email spam.
+      - name: Flag NRC token expiry
+        if: steps.nrc.outcome == 'failure'
+        run: |
+          echo "::warning::NRC fetch failed — the NRC_PLAYER_ID / NRC_USER_ID tokens have most likely rotated. Refresh them in repo Settings → Secrets."
+          hour=$(date -u +%H)
+          if [ "$hour" = "08" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            exit 1   # fail loudly -> GitHub emails you (once-daily, or on a manual run)
+          fi
+          echo "Tokens look rotated; staying green this run to avoid repeat emails (daily alert fires at ~08:00 UTC)."

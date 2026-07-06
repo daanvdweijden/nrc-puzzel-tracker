@@ -1,0 +1,12 @@
+# Secrets — never commit your NRC tokens
+.env
+
+# Browser storage export (may contain other puzzle data)
+crux_storage_dump.json
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
