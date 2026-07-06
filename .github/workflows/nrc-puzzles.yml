@@ -1,4 +1,4 @@
-name: NRC Crux
+name: NRC puzzles
 
 on:
   schedule:
@@ -12,7 +12,7 @@ permissions:
 
 # Never let two runs push at once (a scheduled run + a manual run can overlap).
 concurrency:
-  group: nrc-crux
+  group: nrc-puzzles
   cancel-in-progress: false
 
 jobs:
@@ -29,12 +29,19 @@ jobs:
 
       # ---- token-based; exits non-zero when the tokens rotate ----
       - name: NRC Crux
-        id: nrc
+        id: crux
         continue-on-error: true
         env:
           NRC_PLAYER_ID: ${{ secrets.NRC_PLAYER_ID }}
           NRC_USER_ID: ${{ secrets.NRC_USER_ID }}
         run: python scripts/fetch_nrc.py
+
+      - name: NRC other games (Vorto / Precies vier / Sudoku / etc.)
+        id: nrcgames
+        continue-on-error: true
+        env:
+          NRC_USER_ID: ${{ secrets.NRC_USER_ID }}
+        run: python scripts/fetch_nrc_games.py
 
       - name: Commit updated scores
         run: |
@@ -43,7 +50,7 @@ jobs:
           git add data/
           # No-op (and skip the push) when nothing changed — most runs.
           git diff --cached --quiet && { echo "No changes to commit."; exit 0; }
-          git commit -m "Update Crux scores ($(date -u +'%F %H:%M') UTC)"
+          git commit -m "Update NRC scores ($(date -u +'%F %H:%M') UTC)"
           git pull --rebase --autostash
           git push
 
@@ -51,7 +58,7 @@ jobs:
       # refresh the secrets — but only ONCE a day, not on every 4-hourly
       # run, to avoid email spam.
       - name: Flag NRC token expiry
-        if: steps.nrc.outcome == 'failure'
+        if: steps.crux.outcome == 'failure' || steps.nrcgames.outcome == 'failure'
         run: |
           echo "::warning::NRC fetch failed — the NRC_PLAYER_ID / NRC_USER_ID tokens have most likely rotated. Refresh them in repo Settings → Secrets."
           hour=$(date -u +%H)

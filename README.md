@@ -1,19 +1,26 @@
 # nrc-puzzel-tracker
 
-Track your personal [NRC Crux](https://www.nrc.nl/puzzels/crux/) (crossword)
-solve history automatically via a scheduled GitHub Action. As far as I could
-find, there's no existing open-source tool for this — most NYT-crossword
+Track your personal solve history for **all** of NRC's puzzle-hub games —
+[Crux](https://www.nrc.nl/puzzels/crux/) (crossword), Vorto, Precies vier,
+Sudoku, Cijferblok, Koprol, Aan Zet, Scrypto, In het midden, and Woordzoeker
+— automatically via a scheduled GitHub Action. As far as I could find,
+there's no existing open-source tool for this — most NYT-crossword
 scrapers exist, but nothing for NRC's puzzle platform.
 
 *Nederlands hieronder.*
 
 ## What you get
 
-- `data/crux_scores.csv` — one row per date: puzzle id, constructor, size,
-  solved/not, and (optionally, see below) your solve time plus that
-  puzzle's global average.
-- `data/crux_stats.json` — a snapshot of your aggregate stats: games
+- `data/crux_scores.csv` — one row per date for **Crux**: puzzle id,
+  constructor, size, solved/not, and (optionally, see below) your solve
+  time plus that puzzle's global average.
+- `data/crux_stats.json` — a snapshot of your Crux aggregate stats: games
   played/won, win %, average/fastest time, current and max streak.
+- `data/nrc_games.csv` — one row per date, one column per **other** game
+  (Vorto, Precies vier, Sudoku, Cijferblok, Koprol, Aan Zet, Scrypto, In het
+  midden, Woordzoeker) → `True`/`False` for whether you finished it. These
+  games don't expose a solve-time stat, only finished/not-finished — see
+  `fetch_nrc.py` above for Crux's richer per-puzzle tracking.
 
 ## Setup
 
@@ -26,11 +33,14 @@ scrapers exist, but nothing for NRC's puzzle platform.
      `api.42puzzles.com` — the query string / request body has both.
    - Or: Application/Storage → Local Storage → the `oneplayer-userid` key
      holds the user id.
+   - Note: `fetch_nrc.py` (Crux) uses both `NRC_PLAYER_ID` and
+     `NRC_USER_ID`; `fetch_nrc_games.py` (everything else) only needs
+     `NRC_USER_ID`.
 3. **Add them as repo secrets:** Settings → Secrets and variables → Actions
    → add `NRC_PLAYER_ID` and `NRC_USER_ID`.
 4. **Enable Actions** on your fork.
 
-The `NRC Crux` workflow runs 6×/day and commits any new solves to `data/`.
+The `NRC puzzles` workflow runs 6×/day and commits any new solves to `data/`.
 
 ### Running locally
 
@@ -38,7 +48,8 @@ The `NRC Crux` workflow runs 6×/day and commits any new solves to `data/`.
 pip install -r requirements.txt
 cp .env.example .env   # then fill in NRC_PLAYER_ID / NRC_USER_ID
 
-python scripts/fetch_nrc.py
+python scripts/fetch_nrc.py         # Crux — solve times + stats
+python scripts/fetch_nrc_games.py   # everything else — finished/not per day
 ```
 
 ## Why solve times are only "sometimes" available
@@ -64,10 +75,11 @@ your actual browser storage.
 This project uses an undocumented REST API (`api.42puzzles.com`, the
 platform NRC's puzzles run on) and is not affiliated with or endorsed by
 NRC Media or 42puzzles. This endpoint can change or break without notice.
-`fetch_nrc.py` already guards against the most likely failure mode — if the
-tokens rotate, the overview call comes back with no streak data, and the
-script exits loudly instead of silently overwriting your history with
-all-`False`. Use at your own risk, and don't hammer their servers.
+Both `fetch_nrc.py` and `fetch_nrc_games.py` already guard against the most
+likely failure mode — if the tokens rotate, the overview call comes back
+with no streak data, and the scripts exit loudly instead of silently
+overwriting your history with all-`False`. Use at your own risk, and don't
+hammer their servers.
 
 ## License
 
@@ -77,19 +89,24 @@ MIT — see [LICENSE](LICENSE).
 
 ## Nederlands
 
-Volgt automatisch je persoonlijke oplostijden voor de
-[NRC Crux](https://www.nrc.nl/puzzels/crux/) via een geplande GitHub
-Action. Voor zover ik kon vinden bestaat hier nog geen open-source tool
-voor.
+Volgt automatisch je persoonlijke oplosgeschiedenis voor **alle** spellen
+op het NRC-puzzelplatform — [Crux](https://www.nrc.nl/puzzels/crux/)
+(kruiswoord), Vorto, Precies vier, Sudoku, Cijferblok, Koprol, Aan Zet,
+Scrypto, In het midden en Woordzoeker — via een geplande GitHub Action.
+Voor zover ik kon vinden bestaat hier nog geen open-source tool voor.
 
 ### Wat je krijgt
 
-- `data/crux_scores.csv` — één rij per datum: puzzel-id, maker, formaat,
-  opgelost of niet, en (optioneel) je oplostijd plus het gemiddelde van
-  die puzzel.
-- `data/crux_stats.json` — een snapshot van je totaalstatistieken: aantal
-  gespeeld/gewonnen, winpercentage, gemiddelde/snelste tijd, huidige en
-  langste reeks.
+- `data/crux_scores.csv` — één rij per datum voor **Crux**: puzzel-id,
+  maker, formaat, opgelost of niet, en (optioneel) je oplostijd plus het
+  gemiddelde van die puzzel.
+- `data/crux_stats.json` — een snapshot van je Crux-totaalstatistieken:
+  aantal gespeeld/gewonnen, winpercentage, gemiddelde/snelste tijd, huidige
+  en langste reeks.
+- `data/nrc_games.csv` — één rij per datum, één kolom per **overig** spel
+  (Vorto, Precies vier, Sudoku, Cijferblok, Koprol, Aan Zet, Scrypto, In het
+  midden, Woordzoeker) → `True`/`False` of je hem die dag hebt opgelost.
+  Deze spellen geven geen oplostijd, alleen opgelost/niet-opgelost.
 
 ### Installatie
 
@@ -102,12 +119,15 @@ voor.
      `api.42puzzles.com` — beide staan in de query string / request body.
    - Of: Application/Storage → Local Storage → de sleutel
      `oneplayer-userid` bevat de user id.
+   - Let op: `fetch_nrc.py` (Crux) gebruikt zowel `NRC_PLAYER_ID` als
+     `NRC_USER_ID`; `fetch_nrc_games.py` (de rest) heeft alleen
+     `NRC_USER_ID` nodig.
 3. **Zet ze als repo secrets:** Settings → Secrets and variables → Actions
    → voeg `NRC_PLAYER_ID` en `NRC_USER_ID` toe.
 4. **Zet Actions aan** op je fork.
 
-De workflow `NRC Crux` draait 6×/dag en committeert nieuwe oplossingen naar
-`data/`.
+De workflow `NRC puzzles` draait 6×/dag en committeert nieuwe oplossingen
+naar `data/`.
 
 ### Oplostijden
 
