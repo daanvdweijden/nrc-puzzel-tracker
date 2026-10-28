@@ -18,7 +18,8 @@ Output: data/nrc_games.csv  (date, <game-slug>, ... -> True/False)
 
 Games and slugs mirror NRC's own renderer names:
   vorto (Wordle-style), precies-vier (Connections-style), sudoku,
-  cijferblok, koprol, aan-zet (chess), scrypto, in-het-midden, woordzoeker
+  cijferblok, koprol, aan-zet (chess), scrypto, in-het-midden, woordzoeker,
+  briljant (Queens-style)
 
 Usage:
     python scripts/fetch_nrc_games.py
@@ -66,6 +67,7 @@ RENDERER_SLUG = {
     "scrypto":     "scrypto",
     "inHetMidden": "in-het-midden",
     "wordfind":    "woordzoeker",
+    "queens":      "briljant",
 }
 GAMES      = sorted(RENDERER_SLUG.values())
 FIELDNAMES = ["date"] + GAMES
